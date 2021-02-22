@@ -23,13 +23,15 @@ function App() {
   // Load posenet
   const runPosenet = async () => {
     const net = await posenet.load({
-      inputResolution: { width: 640, height: 480 },
-      scale: 0.5,
+      architecture: 'ResNet50',
+      outputStride: 32,
+      inputResolution: { width: 257, height: 200 },
+      quantBytes: 2,
     });
 
     setInterval(() => {
       detect(net);
-    }, 16.7);
+    }, 100);
   };
 
   const detect = async (net) => {
@@ -40,19 +42,23 @@ function App() {
     ) {
       // Get Video Properties
       const video = webcamRef.current.video;
-      const videoWidth = webcamRef.current.video.videoWidth;
-      const videoHeight = webcamRef.current.video.videoHeight;
+      const videoWidth = 640;
+      const videoHeight = 480;
 
       // Set video width
       webcamRef.current.video.width = videoWidth;
       webcamRef.current.video.height = videoHeight;
 
       // Make Detections
-      const pose = await net.estimateSinglePose(video);
+      const pose = await net.estimateSinglePose(video, {
+        flipHorizontal: true,
+      });
       console.log(pose);
 
       // drawCanvas(pose, video, videoWidth, videoHeight, canvasRef);
-      requestAnimationFrame(()=>{drawCanvas(pose, video, videoWidth, videoHeight, canvasRef)});
+      requestAnimationFrame(() => {
+        drawCanvas(pose, video, videoWidth, videoHeight, canvasRef);
+      });
     }
   };
   const drawCanvas = (pose, video, videoWidth, videoHeight, canvas) => {
@@ -70,7 +76,9 @@ function App() {
     <div className="App">
       <header className="App-header">
         <Webcam
+          mirrored={true}
           ref={webcamRef}
+          screenshotFormat="image/jpeg"
           style={{
             position: 'absolute',
             marginLeft: 'auto',
@@ -83,7 +91,6 @@ function App() {
             height: 480,
           }}
         />
-
         <canvas
           ref={canvasRef}
           style={{
