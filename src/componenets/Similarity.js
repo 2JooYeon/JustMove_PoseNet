@@ -54,15 +54,22 @@ const Similarity = () => {
     const cosineSimilarity = computeCosineSimilarty(originUnitVectors, targetUnitVectors);
 
 
+    // 신뢰도 점수 고려한 새로운 벡터 만들기
+    const originConfidenceVector = confidenceVector(originUnitVectors, originPose);
+    const targetConfidenceVector = confidenceVector(targetUnitVectors, targetPose);
+
+    // 신뢰도 점수를 고려한 유사도 측정
+    const confidenceSimilarity = weightedDistanceMatching(originConfidenceVector, targetConfidenceVector);
 
 
+    
 
   };
 
 
 
   /* PoseNet을 이용한 포즈 추정 결과 받아오기 (신뢰도 점수 및 키포인트 좌표) */
-  const keyDetect = async (net, img, pose) => {
+  const keyDetect = async (net, img) => {
     if (typeof img.current !== 'undefined' && img.current !== null) {
 
       const image = img.current;
@@ -70,7 +77,7 @@ const Similarity = () => {
       // Make Detections
       const pose = await net.estimateSinglePose(image, {
         flipHorizontal : true
-      });
+      }).then( pose)
 
       return pose;
     }
@@ -137,6 +144,45 @@ const Similarity = () => {
   }
 
 
+
+  /* 신뢰도 점수 가중치를 고려한 벡터 만들기 */
+  const confidenceVector=(unitKeyPoints, pose) => {
+    let confidenceVectors = unitKeyPoints;
+
+    
+    for (let score of pose['keypoints']) {
+      confidenceVectors.push(score['score']);
+    }
+
+    confidenceVectors.push(pose['score']);
+
+    return confidenceVectors;
+  }
+
+
+
+
+
+  function weightedDistanceMatching(originConfidenceVector, targetConfidenceVector) {
+    let targetPoseXY = targetConfidenceVector.slice(0, 34);
+    let targetConfidences = targetConfidenceVector.slice(34, 51);
+    let targetConfidenceSum = targetConfidenceVector.slice(51, 52);
+  
+    let originPoseXY = originConfidenceVector.slice(0, 34);
+  
+    // First summation
+    let summation1 = 1 / targetConfidenceSum;
+  
+    // Second summation
+    let summation2 = 0;
+    for (let i = 0; i < targetPoseXY.length; i++) {
+      let tempConf = Math.floor(i / 2);
+      let tempSum = targetConfidences[tempConf] * Math.abs(targetPoseXY[i] - originPoseXY[i]);
+      summation2 += tempSum;
+    }
+  
+    return summation1 * summation2;
+  }
 
   
 
